@@ -1,4 +1,4 @@
-// ScannerPage.jsx — layout che slita quando chat aperta
+// ScannerPage.jsx — border-radius ripristinati, layout shift corretto
 import { useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
@@ -77,20 +77,17 @@ export default function ScannerPage() {
 
   const handleReset = () => { setState('idle'); setAnalysisData(null); setErrorMsg(''); setChatOpen(false); setScanUrl('') }
 
-  // Il contenuto principale slita a sinistra quando la chat è aperta
-  const contentStyle = {
-    flex: 1, position: 'relative', zIndex: 10,
-    paddingTop: '80px', paddingBottom: '32px',
-    marginRight: chatOpen ? `${PANEL_W}px` : '0',
-    transition: 'margin-right 0.35s cubic-bezier(0.16,1,0.3,1)',
-  }
-
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', position: 'relative' }}>
       <Orbs />
-      <Navbar chatOpen={chatOpen} panelW={PANEL_W} />
+      <Navbar />
 
-      <main style={contentStyle}>
+      <main style={{
+        flex: 1, position: 'relative', zIndex: 10,
+        paddingTop: '80px', paddingBottom: '32px',
+        marginRight: chatOpen ? `${PANEL_W}px` : '0',
+        transition: 'margin-right 0.38s cubic-bezier(0.16,1,0.3,1)',
+      }}>
         <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '0 24px' }}>
 
           {/* IDLE */}
@@ -98,8 +95,9 @@ export default function ScannerPage() {
             {state === 'idle' && (
               <motion.div key="hero" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -20 }}
                 style={{ textAlign: 'center', paddingTop: '60px', paddingBottom: '40px' }}>
+
                 <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '7px 18px', background: 'rgba(0,229,255,.06)', border: '1px solid rgba(0,229,255,.2)', borderRadius: 0, marginBottom: '36px' }}>
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '7px 18px', background: 'rgba(0,229,255,.06)', border: '1px solid rgba(0,229,255,.2)', borderRadius: '40px', marginBottom: '36px' }}>
                   <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#00E5FF', display: 'inline-block' }} />
                   <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '10px', color: '#00E5FF', letterSpacing: '0.2em', textTransform: 'uppercase' }}>Powered by Groq · LLaMA 3.1</span>
                 </motion.div>
@@ -123,7 +121,7 @@ export default function ScannerPage() {
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.7 }}
                   style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '8px', marginTop: '36px' }}>
                   {[['Report AI dinamico','#00E5FF'],['Analisi tracker','#9B5FFF'],['Header sicurezza','#FF3B8B'],['Chat contestuale','#F5C842'],['Board interattiva','#00FF99']].map(([label, color]) => (
-                    <span key={label} style={{ padding: '6px 14px', border: `1px solid ${color}28`, background: `${color}07`, fontFamily: 'JetBrains Mono, monospace', fontSize: '9px', color, textTransform: 'uppercase', letterSpacing: '0.12em' }}>{label}</span>
+                    <span key={label} style={{ padding: '6px 14px', border: `1px solid ${color}28`, background: `${color}07`, borderRadius: '20px', fontFamily: 'JetBrains Mono, monospace', fontSize: '9px', color, textTransform: 'uppercase', letterSpacing: '0.12em' }}>{label}</span>
                   ))}
                 </motion.div>
               </motion.div>
@@ -145,15 +143,15 @@ export default function ScannerPage() {
             {state === 'error' && (
               <motion.div key="error" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} style={{ paddingTop: '20px' }}>
                 <div style={{ marginBottom: '28px' }}><SearchBar onAnalyze={handleAnalyze} isLoading={false} /></div>
-                <div style={{ maxWidth: '560px', margin: '0 auto', background: 'rgba(255,59,139,.04)', border: '1px solid rgba(255,59,139,.2)', padding: '24px' }}>
+                <div style={{ maxWidth: '560px', margin: '0 auto', background: 'rgba(255,59,139,.04)', border: '1px solid rgba(255,59,139,.2)', borderRadius: '16px', padding: '24px' }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
-                    <div style={{ width: '40px', height: '40px', background: 'rgba(255,59,139,.1)', border: '1px solid rgba(255,59,139,.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,59,139,.1)', border: '1px solid rgba(255,59,139,.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       <AlertTriangle size={18} color="#FF3B8B" />
                     </div>
                     <div>
                       <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '11px', fontWeight: 700, color: '#FF3B8B', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>Analisi fallita</div>
                       <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '11px', color: 'rgba(255,255,255,.5)', lineHeight: 1.7, marginBottom: '16px' }}>{errorMsg}</p>
-                      <button onClick={handleReset} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.1)', color: 'rgba(255,255,255,.5)', fontFamily: 'JetBrains Mono, monospace', fontSize: '11px', cursor: 'pointer' }}>
+                      <button onClick={handleReset} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.1)', borderRadius: '8px', color: 'rgba(255,255,255,.5)', fontFamily: 'JetBrains Mono, monospace', fontSize: '11px', cursor: 'pointer' }}>
                         <RotateCcw size={12} /> Riprova
                       </button>
                     </div>
@@ -170,10 +168,10 @@ export default function ScannerPage() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '24px', flexWrap: 'wrap' }}>
                   <div style={{ flex: 1, minWidth: '280px' }}><SearchBar onAnalyze={handleAnalyze} isLoading={false} /></div>
                   <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
-                    <button onClick={handleReset} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 14px', background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.4)', fontFamily: 'JetBrains Mono, monospace', fontSize: '11px', cursor: 'pointer' }}>
+                    <button onClick={handleReset} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 14px', background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.08)', borderRadius: '10px', color: 'rgba(255,255,255,.4)', fontFamily: 'JetBrains Mono, monospace', fontSize: '11px', cursor: 'pointer' }}>
                       <RotateCcw size={12} /> Reset
                     </button>
-                    <button onClick={() => navigate('/board')} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 14px', background: 'rgba(155,95,255,.08)', border: '1px solid rgba(155,95,255,.25)', color: '#9B5FFF', fontFamily: 'JetBrains Mono, monospace', fontSize: '11px', cursor: 'pointer' }}>
+                    <button onClick={() => navigate('/board')} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 14px', background: 'rgba(155,95,255,.08)', border: '1px solid rgba(155,95,255,.25)', borderRadius: '10px', color: '#9B5FFF', fontFamily: 'JetBrains Mono, monospace', fontSize: '11px', cursor: 'pointer' }}>
                       <LayoutDashboard size={12} /> Board
                     </button>
                   </div>
