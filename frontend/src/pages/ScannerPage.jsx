@@ -1,10 +1,8 @@
-// ─────────────────────────────────────────────────────────
-//  pages/ScannerPage.jsx — Pagina principale dello scanner
-// ─────────────────────────────────────────────────────────
+// pages/ScannerPage.jsx — Layout ampio, localStorage per board, chat fix
 import { useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
-import { LayoutDashboard, RotateCcw } from 'lucide-react'
+import { LayoutDashboard, RotateCcw, Shield, AlertTriangle } from 'lucide-react'
 
 import Navbar            from '../components/Layout/Navbar'
 import Footer            from '../components/Layout/Footer'
@@ -12,20 +10,55 @@ import SearchBar         from '../components/Scanner/SearchBar'
 import ScanningAnimation from '../components/Scanner/ScanningAnimation'
 import ReportView        from '../components/Report/ReportView'
 import ChatPanel         from '../components/Chat/ChatPanel'
-import { analyzeUrl, saveLink } from '../lib/api'
+import { analyzeUrl }    from '../lib/api'
 
-// Background particles / orbs (pure CSS, no canvas)
+// Salva i link analizzati in localStorage per la board
+function saveLinkToLocalStorage(data) {
+  try {
+    const existing = JSON.parse(localStorage.getItem('xyber_board_links') || '[]')
+    const newLink = {
+      _id:          data.id || `local_${Date.now()}`,
+      url:          data.url,
+      domain:       data.domain,
+      category:     mapRiskToCategory(data.report?.riskScore || 0),
+      label:        '',
+      tags:         [],
+      connections:  [],
+      boardPosition:{ x: 120 + Math.random() * 500, y: 100 + Math.random() * 300 },
+      report:       data.report,
+      extractedData:{ ...data.extractedData, statusCode: data.status, redirectChain: data.redirectChain },
+      analyzedAt:   new Date().toISOString(),
+    }
+    // Evita duplicati per URL
+    const filtered = existing.filter(l => l.url !== data.url)
+    localStorage.setItem('xyber_board_links', JSON.stringify([newLink, ...filtered].slice(0, 100)))
+  } catch (e) {
+    console.warn('localStorage save failed:', e)
+  }
+}
+
+function mapRiskToCategory(score) {
+  if (score <= 2) return 'safe'
+  if (score <= 4) return 'suspicious'
+  if (score <= 7) return 'dangerous'
+  return 'phishing'
+}
+
 function Orbs() {
   return (
-    <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-      <div className="absolute w-[600px] h-[600px] -top-32 -right-32 rounded-full"
-        style={{ background: 'radial-gradient(circle, rgba(0,229,255,.07) 0%, transparent 70%)',
-                 animation: 'orb-drift 18s ease-in-out infinite' }} />
-      <div className="absolute w-[500px] h-[500px] -bottom-20 -left-20 rounded-full"
-        style={{ background: 'radial-gradient(circle, rgba(155,95,255,.05) 0%, transparent 70%)',
-                 animation: 'orb-drift 22s ease-in-out 3s infinite reverse' }} />
+    <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', overflow: 'hidden', zIndex: 0 }}>
+      <div style={{
+        position: 'absolute', width: '700px', height: '700px', top: '-150px', right: '-150px', borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(0,229,255,.06) 0%, transparent 70%)',
+        animation: 'orbDrift 18s ease-in-out infinite',
+      }} />
+      <div style={{
+        position: 'absolute', width: '600px', height: '600px', bottom: '-100px', left: '-100px', borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(155,95,255,.04) 0%, transparent 70%)',
+        animation: 'orbDrift 22s ease-in-out 3s infinite reverse',
+      }} />
       <style>{`
-        @keyframes orb-drift {
+        @keyframes orbDrift {
           0%,100% { transform: translate(0,0); }
           33%      { transform: translate(40px,-30px); }
           66%      { transform: translate(-20px,40px); }
@@ -36,11 +69,11 @@ function Orbs() {
 }
 
 export default function ScannerPage() {
-  const [state, setState]       = useState('idle') // idle | scanning | done | error
+  const [state, setState]             = useState('idle')
   const [analysisData, setAnalysisData] = useState(null)
-  const [errorMsg, setErrorMsg] = useState('')
-  const [chatOpen, setChatOpen] = useState(false)
-  const [scanUrl, setScanUrl]   = useState('')
+  const [errorMsg, setErrorMsg]       = useState('')
+  const [chatOpen, setChatOpen]       = useState(false)
+  const [scanUrl, setScanUrl]         = useState('')
   const navigate = useNavigate()
 
   const handleAnalyze = useCallback(async (url) => {
@@ -49,45 +82,22 @@ export default function ScannerPage() {
     setErrorMsg('')
     setAnalysisData(null)
     setChatOpen(false)
-
     try {
       const data = await analyzeUrl(url)
       setAnalysisData(data)
       setState('done')
-      // Auto-open chat after a short delay
-      setTimeout(() => setChatOpen(true), 1200)
+      // Salva sempre in localStorage
+      saveLinkToLocalStorage(data)
+      setTimeout(() => setChatOpen(true), 1000)
     } catch (err) {
-      const msg = err.response?.data?.error || err.message || 'Errore durante l\'analisi.'
-      setErrorMsg(msg)
+      setErrorMsg(err.response?.data?.error || err.message || 'Errore durante l\'analisi.')
       setState('error')
     }
   }, [])
 
-  const handleAddToBoard = useCallback(async () => {
-    if (!analysisData) return
-    try {
-      await saveLink({
-        url:      analysisData.url,
-        domain:   analysisData.domain,
-        category: analysisData.report?.riskLevel === 'LOW'      ? 'safe'
-                : analysisData.report?.riskLevel === 'CRITICAL'  ? 'phishing'
-                : analysisData.report?.riskLevel === 'HIGH'      ? 'dangerous'
-                : 'suspicious',
-        report:        analysisData.report,
-        extractedData: {
-          ...analysisData.extractedData,
-          statusCode:   analysisData.status,
-          redirectChain:analysisData.redirectChain,
-        },
-        boardPosition: {
-          x: Math.random() * 500 + 100,
-          y: Math.random() * 300 + 100,
-        },
-      })
-      navigate('/board')
-    } catch (err) {
-      console.error('Add to board failed:', err)
-    }
+  const handleAddToBoard = useCallback(() => {
+    if (analysisData) saveLinkToLocalStorage(analysisData)
+    navigate('/board')
   }, [analysisData, navigate])
 
   const handleReset = () => {
@@ -99,113 +109,68 @@ export default function ScannerPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col relative">
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', position: 'relative' }}>
       <Orbs />
       <Navbar />
 
-      {/* Main content */}
-      <main className="flex-1 relative z-10 pt-24 pb-8">
-        <div className={`max-w-5xl mx-auto px-5 transition-all duration-500 ${chatOpen ? 'pr-[420px]' : ''}`}>
+      <main style={{ flex: 1, position: 'relative', zIndex: 10, paddingTop: '80px', paddingBottom: '32px', transition: 'padding-right 0.35s ease' }}>
+        <div style={{ maxWidth: chatOpen ? 'calc(100% - 420px)' : '1100px', margin: '0 auto', padding: '0 24px', transition: 'max-width 0.35s ease' }}>
 
-          {/* ── Hero section ─────────────────────────────────── */}
+          {/* IDLE */}
           <AnimatePresence mode="wait">
             {state === 'idle' && (
-              <motion.div
-                key="hero"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.5 }}
-                className="text-center mb-14 pt-10"
-              >
+              <motion.div key="hero" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -20 }} style={{ textAlign: 'center', paddingTop: '60px', paddingBottom: '40px' }}>
                 {/* Badge */}
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.1 }}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-cyan/8 border border-cyan/20 mb-8"
-                >
-                  <div className="w-1.5 h-1.5 rounded-full bg-cyan animate-pulse-cyan" />
-                  <span className="font-mono text-[10px] text-cyan tracking-[.2em] uppercase">
-                    Powered by Groq · LLaMA 3.1
-                  </span>
+                <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 18px', borderRadius: '40px', background: 'rgba(0,229,255,.06)', border: '1px solid rgba(0,229,255,.2)', marginBottom: '36px' }}>
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#00E5FF', animation: 'pulse 2s infinite' }} />
+                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '10px', color: '#00E5FF', letterSpacing: '0.2em', textTransform: 'uppercase' }}>Powered by Groq · LLaMA 3.1</span>
                 </motion.div>
 
                 {/* Headline */}
-                <motion.h1
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2, duration: 0.7, ease: [0.16,1,.3,1] }}
-                  className="font-title font-black uppercase leading-[.88] tracking-tight mb-6"
-                >
-                  <span className="block text-white/30 text-xl sm:text-2xl tracking-[.1em] mb-3 font-mono font-normal">
-                    XyberLabs presents
-                  </span>
-                  <span className="block text-4xl sm:text-6xl lg:text-7xl text-white">
-                    Link
-                  </span>
-                  <span className="block text-4xl sm:text-6xl lg:text-7xl gradient-text-cyan text-glow-cyan">
-                    Scanner AI
-                  </span>
+                <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.7, ease: [0.16,1,.3,1] }}
+                  style={{ fontFamily: 'alfarn-2, sans-serif', fontWeight: 900, textTransform: 'uppercase', lineHeight: 0.9, letterSpacing: '-0.01em', marginBottom: '24px' }}>
+                  <span style={{ display: 'block', color: 'rgba(255,255,255,.25)', fontSize: 'clamp(14px,2vw,20px)', fontFamily: 'JetBrains Mono, monospace', fontWeight: 400, letterSpacing: '0.12em', marginBottom: '12px' }}>XyberLabs presents</span>
+                  <span style={{ display: 'block', color: 'white', fontSize: 'clamp(42px,8vw,80px)' }}>Link</span>
+                  <span style={{ display: 'block', fontSize: 'clamp(42px,8vw,80px)', background: 'linear-gradient(90deg, #00E5FF, #00BFFF)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', filter: 'drop-shadow(0 0 30px rgba(0,229,255,.4))' }}>Scanner AI</span>
                 </motion.h1>
 
-                {/* Subhead */}
-                <motion.p
-                  initial={{ opacity: 0, y: 14 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.35, duration: 0.6 }}
-                  className="font-mono text-sm text-white/35 max-w-lg mx-auto leading-relaxed mb-12"
-                >
-                  Analisi di sicurezza AI su qualsiasi URL. Report dinamico, chat contestuale,
-                  board interattiva. Solo HTML — nessun JS eseguito, nessuna navigazione reale.
+                <motion.p initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}
+                  style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '13px', color: 'rgba(255,255,255,.35)', maxWidth: '520px', margin: '0 auto 48px', lineHeight: 1.7 }}>
+                  Analisi di sicurezza AI su qualsiasi URL. Report dinamico, chat contestuale, board interattiva. Solo HTML — nessun JS eseguito.
                 </motion.p>
 
-                {/* SearchBar */}
-                <motion.div
-                  initial={{ opacity: 0, y: 14 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.45, duration: 0.6 }}
-                >
+                <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}>
                   <SearchBar onAnalyze={handleAnalyze} isLoading={false} />
                 </motion.div>
 
                 {/* Feature pills */}
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.7 }}
-                  className="flex flex-wrap justify-center gap-2 mt-10"
-                >
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.7 }}
+                  style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '8px', marginTop: '36px' }}>
                   {[
-                    { label: 'Report AI dinamico', color: 'cyan'   },
-                    { label: 'Analisi tracker',     color: 'violet' },
-                    { label: 'Header sicurezza',    color: 'pink'   },
-                    { label: 'Chat contestuale',    color: 'gold'   },
-                    { label: 'Board interattiva',   color: 'neon'   },
+                    { label: 'Report AI dinamico', color: '#00E5FF' },
+                    { label: 'Analisi tracker',    color: '#9B5FFF' },
+                    { label: 'Header sicurezza',   color: '#FF3B8B' },
+                    { label: 'Chat contestuale',   color: '#F5C842' },
+                    { label: 'Board interattiva',  color: '#00FF99' },
                   ].map(({ label, color }) => (
-                    <span key={label}
-                      className={`px-3 py-1.5 rounded-full border font-mono text-[9px] uppercase tracking-widest text-${color} border-${color}/25 bg-${color}/5`}
-                    >
-                      {label}
-                    </span>
+                    <span key={label} style={{
+                      padding: '6px 14px', borderRadius: '20px',
+                      border: `1px solid ${color}30`, background: `${color}08`,
+                      fontFamily: 'JetBrains Mono, monospace', fontSize: '9px',
+                      color, textTransform: 'uppercase', letterSpacing: '0.12em',
+                    }}>{label}</span>
                   ))}
                 </motion.div>
               </motion.div>
             )}
           </AnimatePresence>
 
-          {/* ── Scanning state ────────────────────────────────── */}
+          {/* SCANNING */}
           <AnimatePresence mode="wait">
             {state === 'scanning' && (
-              <motion.div
-                key="scanning"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="py-12"
-              >
-                {/* Compact searchbar at top */}
-                <div className="mb-10">
+              <motion.div key="scanning" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ paddingTop: '20px', paddingBottom: '40px' }}>
+                <div style={{ marginBottom: '40px' }}>
                   <SearchBar onAnalyze={handleAnalyze} isLoading={true} />
                 </div>
                 <ScanningAnimation url={scanUrl} />
@@ -213,35 +178,28 @@ export default function ScannerPage() {
             )}
           </AnimatePresence>
 
-          {/* ── Error state ───────────────────────────────────── */}
+          {/* ERROR */}
           <AnimatePresence mode="wait">
             {state === 'error' && (
-              <motion.div
-                key="error"
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                className="py-8"
-              >
-                <div className="mb-8">
+              <motion.div key="error" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} style={{ paddingTop: '20px' }}>
+                <div style={{ marginBottom: '28px' }}>
                   <SearchBar onAnalyze={handleAnalyze} isLoading={false} />
                 </div>
-                <div className="max-w-xl mx-auto glass-card border-pink/20 bg-pink/3 p-6 corner-bracket">
-                  <div className="flex items-start gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-pink/10 border border-pink/30 flex items-center justify-center flex-shrink-0">
-                      <span className="text-pink text-lg">⚠</span>
+                <div style={{ maxWidth: '560px', margin: '0 auto', background: 'rgba(255,59,139,.04)', border: '1px solid rgba(255,59,139,.2)', borderRadius: '18px', padding: '24px' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
+                    <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,59,139,.1)', border: '1px solid rgba(255,59,139,.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <AlertTriangle size={18} color="#FF3B8B" />
                     </div>
                     <div>
-                      <div className="font-mono text-xs font-bold text-pink uppercase tracking-widest mb-2">
-                        Analisi fallita
-                      </div>
-                      <p className="font-mono text-xs text-white/50 leading-relaxed mb-4">{errorMsg}</p>
-                      <button
-                        onClick={handleReset}
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 font-mono text-xs text-white/50 hover:text-white hover:border-white/20 transition-colors"
-                      >
-                        <RotateCcw size={12} />
-                        Riprova
+                      <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '11px', fontWeight: 700, color: '#FF3B8B', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>Analisi fallita</div>
+                      <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '11px', color: 'rgba(255,255,255,.5)', lineHeight: 1.7, marginBottom: '16px' }}>{errorMsg}</p>
+                      <button onClick={handleReset} style={{
+                        display: 'flex', alignItems: 'center', gap: '6px',
+                        padding: '8px 16px', borderRadius: '10px', cursor: 'pointer',
+                        background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.1)',
+                        color: 'rgba(255,255,255,.5)', fontFamily: 'JetBrains Mono, monospace', fontSize: '11px',
+                      }}>
+                        <RotateCcw size={12} /> Riprova
                       </button>
                     </div>
                   </div>
@@ -250,43 +208,36 @@ export default function ScannerPage() {
             )}
           </AnimatePresence>
 
-          {/* ── Report state ──────────────────────────────────── */}
+          {/* DONE */}
           <AnimatePresence mode="wait">
             {state === 'done' && analysisData && (
-              <motion.div
-                key="done"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="py-4"
-              >
-                {/* Compact searchbar + actions row */}
-                <div className="mb-6 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                  <div className="flex-1">
+              <motion.div key="done" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ paddingTop: '16px' }}>
+                {/* Top bar */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px', flexWrap: 'wrap' }}>
+                  <div style={{ flex: 1, minWidth: '300px' }}>
                     <SearchBar onAnalyze={handleAnalyze} isLoading={false} />
                   </div>
-                  <div className="flex gap-2 flex-shrink-0">
-                    <button
-                      onClick={handleReset}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/4 border border-white/8 font-mono text-xs text-white/40 hover:text-white hover:border-white/15 transition-colors"
-                    >
-                      <RotateCcw size={12} />
-                      Reset
+                  <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+                    <button onClick={handleReset} style={{
+                      display: 'flex', alignItems: 'center', gap: '6px',
+                      padding: '9px 14px', borderRadius: '10px', cursor: 'pointer',
+                      background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.08)',
+                      color: 'rgba(255,255,255,.4)', fontFamily: 'JetBrains Mono, monospace', fontSize: '11px',
+                    }}>
+                      <RotateCcw size={12} /> Reset
                     </button>
-                    <button
-                      onClick={() => navigate('/board')}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-violet/8 border border-violet/25 font-mono text-xs text-violet hover:bg-violet/18 transition-colors"
-                    >
-                      <LayoutDashboard size={12} />
-                      Board
+                    <button onClick={() => navigate('/board')} style={{
+                      display: 'flex', alignItems: 'center', gap: '6px',
+                      padding: '9px 14px', borderRadius: '10px', cursor: 'pointer',
+                      background: 'rgba(155,95,255,.08)', border: '1px solid rgba(155,95,255,.25)',
+                      color: '#9B5FFF', fontFamily: 'JetBrains Mono, monospace', fontSize: '11px',
+                    }}>
+                      <LayoutDashboard size={12} /> Board
                     </button>
                   </div>
                 </div>
 
-                <ReportView
-                  data={analysisData}
-                  onAddToBoard={handleAddToBoard}
-                />
+                <ReportView data={analysisData} onAddToBoard={handleAddToBoard} />
               </motion.div>
             )}
           </AnimatePresence>
@@ -294,13 +245,7 @@ export default function ScannerPage() {
       </main>
 
       <Footer />
-
-      {/* Chat panel */}
-      <ChatPanel
-        analysisData={analysisData}
-        isOpen={chatOpen}
-        onToggle={() => setChatOpen(v => !v)}
-      />
+      <ChatPanel analysisData={analysisData} isOpen={chatOpen} onToggle={() => setChatOpen(v => !v)} />
     </div>
   )
 }

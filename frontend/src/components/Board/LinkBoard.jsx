@@ -1,8 +1,4 @@
-// ─────────────────────────────────────────────────────────
-//  components/Board/LinkBoard.jsx
-//  Board interattiva con React Flow (@xyflow/react)
-//  Drag & drop, connessioni, label, categorie, cartelle
-// ─────────────────────────────────────────────────────────
+// components/Board/LinkBoard.jsx — Legge da localStorage + API
 import { useCallback, useEffect, useState } from 'react'
 import {
   ReactFlow, Background, Controls, MiniMap,
@@ -11,21 +7,51 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Trash2, Tag, FolderPlus, Link2, CheckCircle2 } from 'lucide-react'
+import { Link2, CheckCircle2 } from 'lucide-react'
 import { getLinks, updateLink, deleteLink } from '../../lib/api'
-import LinkNode from './LinkNode'
-import NodeEditor from './NodeEditor'
+import LinkNode    from './LinkNode'
+import NodeEditor  from './NodeEditor'
 
 const nodeTypes = { linkNode: LinkNode }
 
-const CATEGORY_COLORS = {
-  safe:       'rgba(0,255,153,.3)',
-  suspicious: 'rgba(245,200,66,.3)',
-  dangerous:  'rgba(255,122,64,.3)',
-  phishing:   'rgba(255,59,139,.3)',
-  tracker:    'rgba(155,95,255,.3)',
-  ads:        'rgba(0,229,255,.3)',
-  unknown:    'rgba(255,255,255,.15)',
+const CAT_COLORS = {
+  safe:       'rgba(0,255,153,.5)',
+  suspicious: 'rgba(245,200,66,.5)',
+  dangerous:  'rgba(255,122,64,.5)',
+  phishing:   'rgba(255,59,139,.5)',
+  tracker:    'rgba(155,95,255,.5)',
+  ads:        'rgba(0,229,255,.5)',
+  unknown:    'rgba(255,255,255,.2)',
+}
+
+// Carica da localStorage
+function loadLocalLinks() {
+  try {
+    return JSON.parse(localStorage.getItem('xyber_board_links') || '[]')
+  } catch { return [] }
+}
+
+// Salva posizioni in localStorage
+function saveLocalPosition(id, position) {
+  try {
+    const links = loadLocalLinks()
+    const updated = links.map(l => l._id === id ? { ...l, boardPosition: position } : l)
+    localStorage.setItem('xyber_board_links', JSON.stringify(updated))
+  } catch {}
+}
+
+function deleteLocalLink(id) {
+  try {
+    const links = loadLocalLinks().filter(l => l._id !== id)
+    localStorage.setItem('xyber_board_links', JSON.stringify(links))
+  } catch {}
+}
+
+function updateLocalLink(id, updates) {
+  try {
+    const links = loadLocalLinks().map(l => l._id === id ? { ...l, ...updates } : l)
+    localStorage.setItem('xyber_board_links', JSON.stringify(links))
+  } catch {}
 }
 
 export default function LinkBoard() {
@@ -35,163 +61,121 @@ export default function LinkBoard() {
   const [loading, setLoading]            = useState(true)
   const [saved, setSaved]                = useState(false)
 
-  // ── Load links from DB ────────────────────────────────
-  useEffect(() => {
-    loadLinks()
-  }, [])
+  useEffect(() => { loadLinks() }, [])
 
   async function loadLinks() {
     try {
-      const links = await getLinks()
-      const loadedNodes = links.map(link => ({
-        id:       link._id,
-        type:     'linkNode',
-        position: link.boardPosition || { x: Math.random() * 600 + 100, y: Math.random() * 400 + 100 },
-        data: {
-          url:       link.url,
-          domain:    link.domain,
-          label:     link.label,
-          category:  link.category,
-          riskScore: link.report?.riskScore || 0,
-          riskLevel: link.report?.riskLevel || 'UNKNOWN',
-          tags:      link.tags || [],
-          onSelect:  () => setSelectedNode(link),
-        },
-      }))
-
-      // Rebuild edges from connections
-      const loadedEdges = []
-      links.forEach(link => {
-        (link.connections || []).forEach(targetId => {
-          loadedEdges.push({
-            id:     `${link._id}-${targetId}`,
-            source: link._id,
-            target: String(targetId),
-            animated: true,
-          })
-        })
-      })
-
-      setNodes(loadedNodes)
-      setEdges(loadedEdges)
-    } catch (err) {
-      console.warn('Board: impossibile caricare link', err.message)
+      // Prima prova API
+      const apiLinks = await getLinks()
+      const allLinks = apiLinks.length > 0 ? apiLinks : loadLocalLinks()
+      buildNodes(allLinks)
+    } catch {
+      // Fallback a localStorage
+      buildNodes(loadLocalLinks())
     } finally {
       setLoading(false)
     }
   }
 
-  // ── Save node position on drag end ─────────────────────
+  function buildNodes(links) {
+    const ns = links.map(link => ({
+      id:       String(link._id),
+      type:     'linkNode',
+      position: link.boardPosition || { x: Math.random() * 600 + 100, y: Math.random() * 400 + 100 },
+      data: {
+        url:       link.url,
+        domain:    link.domain,
+        label:     link.label,
+        category:  link.category,
+        riskScore: link.report?.riskScore ?? 0,
+        riskLevel: link.report?.riskLevel ?? 'UNKNOWN',
+        tags:      link.tags || [],
+      },
+    }))
+
+    const es = []
+    links.forEach(link => {
+      ;(link.connections || []).forEach(targetId => {
+        es.push({ id: `${link._id}-${targetId}`, source: String(link._id), target: String(targetId), animated: true })
+      })
+    })
+    setNodes(ns)
+    setEdges(es)
+  }
+
   const onNodeDragStop = useCallback(async (_, node) => {
-    try {
-      await updateLink(node.id, { boardPosition: node.position })
-    } catch (err) {
-      console.warn('Update position failed:', err.message)
-    }
+    saveLocalPosition(node.id, node.position)
+    try { await updateLink(node.id, { boardPosition: node.position }) } catch {}
   }, [])
 
-  // ── Connect two nodes ─────────────────────────────────
   const onConnect = useCallback(async (params) => {
     setEdges(eds => addEdge({ ...params, animated: true }, eds))
-    // Save connection to DB
-    try {
-      const sourceNode = nodes.find(n => n.id === params.source)
-      if (!sourceNode) return
-      const currentConns = sourceNode.data.connections || []
-      await updateLink(params.source, {
-        connections: [...currentConns, params.target]
-      })
-    } catch (err) {
-      console.warn('Save connection failed:', err.message)
-    }
-  }, [nodes])
+    try { await updateLink(params.source, { connections: [params.target] }) } catch {}
+  }, [])
 
-  // ── Delete selected node ─────────────────────────────
   const handleDeleteNode = async (id) => {
-    try {
-      await deleteLink(id)
-      setNodes(ns => ns.filter(n => n.id !== id))
-      setEdges(es => es.filter(e => e.source !== id && e.target !== id))
-      setSelectedNode(null)
-    } catch (err) {
-      console.warn('Delete failed:', err.message)
-    }
+    deleteLocalLink(id)
+    setNodes(ns => ns.filter(n => n.id !== id))
+    setEdges(es => es.filter(e => e.source !== id && e.target !== id))
+    setSelectedNode(null)
+    try { await deleteLink(id) } catch {}
   }
 
-  // ── Update label/category ─────────────────────────────
   const handleUpdateNode = async (id, updates) => {
-    try {
-      await updateLink(id, updates)
-      setNodes(ns => ns.map(n =>
-        n.id === id ? { ...n, data: { ...n.data, ...updates } } : n
-      ))
-      setSaved(true)
-      setTimeout(() => setSaved(false), 2000)
-    } catch (err) {
-      console.warn('Update node failed:', err.message)
-    }
+    updateLocalLink(id, updates)
+    setNodes(ns => ns.map(n => n.id === id ? { ...n, data: { ...n.data, ...updates } } : n))
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+    try { await updateLink(id, updates) } catch {}
   }
 
-  if (loading) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 rounded-xl bg-cyan/10 border border-cyan/30 flex items-center justify-center mx-auto mb-4">
-            <div className="w-5 h-5 rounded-full border-2 border-cyan border-t-transparent animate-spin" />
-          </div>
-          <div className="font-mono text-xs text-white/30">Caricamento board...</div>
+  if (loading) return (
+    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: 'rgba(0,229,255,.08)', border: '1px solid rgba(0,229,255,.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+          <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: '2px solid #00E5FF', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} />
         </div>
+        <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '11px', color: 'rgba(255,255,255,.3)' }}>Caricamento board...</div>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
-    )
-  }
+    </div>
+  )
 
   return (
-    <div className="flex-1 relative">
-      {/* Empty state */}
+    <div style={{ flex: 1, position: 'relative' }}>
       {nodes.length === 0 && (
-        <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
-          <div className="text-center max-w-xs">
-            <div className="w-16 h-16 rounded-2xl bg-white/3 border border-white/8 flex items-center justify-center mx-auto mb-4">
-              <Link2 size={24} className="text-white/20" />
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10, pointerEvents: 'none' }}>
+          <div style={{ textAlign: 'center', maxWidth: '300px' }}>
+            <div style={{ width: '64px', height: '64px', borderRadius: '18px', background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.07)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+              <Link2 size={24} color="rgba(255,255,255,.2)" />
             </div>
-            <p className="font-mono text-sm text-white/20 leading-relaxed">
-              Nessun link sulla board.<br />
-              Analizza un URL dallo Scanner per aggiungerlo.
+            <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '12px', color: 'rgba(255,255,255,.2)', lineHeight: 1.7 }}>
+              Nessun link sulla board.<br />Analizza un URL dallo Scanner.
             </p>
           </div>
         </div>
       )}
 
-      {/* React Flow canvas */}
       <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-        onNodeDragStop={onNodeDragStop}
+        nodes={nodes} edges={edges}
+        onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
+        onConnect={onConnect} onNodeDragStop={onNodeDragStop}
         nodeTypes={nodeTypes}
-        onNodeClick={(_, node) => setSelectedNode({ _id: node.id, ...node.data })}
+        onNodeClick={(_, node) => {
+          const localLinks = loadLocalLinks()
+          const found = localLinks.find(l => String(l._id) === node.id)
+          setSelectedNode(found ? { ...found, _id: node.id, ...node.data } : { _id: node.id, ...node.data })
+        }}
         onPaneClick={() => setSelectedNode(null)}
-        fitView
-        fitViewOptions={{ padding: 0.2 }}
+        fitView fitViewOptions={{ padding: 0.2 }}
         deleteKeyCode="Delete"
-        className="bg-transparent"
+        style={{ background: 'transparent' }}
       >
-        <Background
-          variant={BackgroundVariant.Dots}
-          gap={28}
-          size={1}
-          color="rgba(0,229,255,.15)"
-        />
+        <Background variant={BackgroundVariant.Dots} gap={28} size={1} color="rgba(0,229,255,.12)" />
         <Controls />
-        <MiniMap
-          nodeColor={node => CATEGORY_COLORS[node.data?.category] || CATEGORY_COLORS.unknown}
-          maskColor="rgba(7,7,13,.8)"
-        />
+        <MiniMap nodeColor={n => CAT_COLORS[n.data?.category] || CAT_COLORS.unknown} maskColor="rgba(7,7,13,.8)" />
       </ReactFlow>
 
-      {/* Node editor sidebar */}
       <AnimatePresence>
         {selectedNode && (
           <NodeEditor
@@ -203,17 +187,11 @@ export default function LinkBoard() {
         )}
       </AnimatePresence>
 
-      {/* Saved indicator */}
       <AnimatePresence>
         {saved && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className="fixed bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 rounded-full bg-neon/10 border border-neon/30 text-neon font-mono text-xs"
-          >
-            <CheckCircle2 size={13} />
-            Salvato
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+            style={{ position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 18px', borderRadius: '20px', background: 'rgba(0,255,153,.1)', border: '1px solid rgba(0,255,153,.3)', color: '#00FF99', fontFamily: 'JetBrains Mono, monospace', fontSize: '11px', zIndex: 50 }}>
+            <CheckCircle2 size={13} /> Salvato
           </motion.div>
         )}
       </AnimatePresence>

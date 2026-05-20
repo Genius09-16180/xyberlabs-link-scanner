@@ -1,13 +1,10 @@
-// ─────────────────────────────────────────────────────────
-//  components/Report/ReportView.jsx
-//  Visualizza il report AI con box grafici animati
-// ─────────────────────────────────────────────────────────
+// components/Report/ReportView.jsx — Layout più ampio, dati grezzi migliorati
 import { motion } from 'framer-motion'
 import {
   Shield, AlertTriangle, AlertOctagon, Zap,
   Eye, Code, Link as LinkIcon, Cookie, Server,
   Lock, Globe, ExternalLink, LayoutDashboard,
-  CheckCircle2, XCircle, MinusCircle,
+  CheckCircle2, XCircle, MinusCircle, Wifi,
 } from 'lucide-react'
 
 const iconMap = {
@@ -16,244 +13,275 @@ const iconMap = {
   server: Server, lock: Lock, globe: Globe, zap: Zap,
 }
 
-const colorMap = {
-  cyan:   { text: 'text-cyan',   border: 'border-cyan/20',   bg: 'bg-cyan/5',   glow: 'rgba(0,229,255,.15)'   },
-  violet: { text: 'text-violet', border: 'border-violet/20', bg: 'bg-violet/5', glow: 'rgba(155,95,255,.15)'  },
-  pink:   { text: 'text-pink',   border: 'border-pink/20',   bg: 'bg-pink/5',   glow: 'rgba(255,59,139,.15)'  },
-  orange: { text: 'text-orange', border: 'border-orange/20', bg: 'bg-orange/5', glow: 'rgba(255,122,64,.15)'  },
-  green:  { text: 'text-neon',   border: 'border-neon/20',   bg: 'bg-neon/5',   glow: 'rgba(0,255,153,.15)'   },
-  gold:   { text: 'text-gold',   border: 'border-gold/20',   bg: 'bg-gold/5',   glow: 'rgba(245,200,66,.15)'  },
+const SECTION_STYLES = {
+  cyan:   { text: '#00E5FF', border: 'rgba(0,229,255,.18)',   bg: 'rgba(0,229,255,.04)',    glow: 'rgba(0,229,255,.12)'   },
+  violet: { text: '#9B5FFF', border: 'rgba(155,95,255,.18)',  bg: 'rgba(155,95,255,.04)',   glow: 'rgba(155,95,255,.12)'  },
+  pink:   { text: '#FF3B8B', border: 'rgba(255,59,139,.18)',  bg: 'rgba(255,59,139,.04)',   glow: 'rgba(255,59,139,.12)'  },
+  orange: { text: '#FF7A40', border: 'rgba(255,122,64,.18)',  bg: 'rgba(255,122,64,.04)',   glow: 'rgba(255,122,64,.12)'  },
+  green:  { text: '#00FF99', border: 'rgba(0,255,153,.18)',   bg: 'rgba(0,255,153,.04)',    glow: 'rgba(0,255,153,.12)'   },
+  gold:   { text: '#F5C842', border: 'rgba(245,200,66,.18)',  bg: 'rgba(245,200,66,.04)',   glow: 'rgba(245,200,66,.12)'  },
 }
 
-const riskConfig = {
-  LOW:      { label: 'BASSO',    cls: 'risk-low',      Icon: CheckCircle2,  glow: 'rgba(0,255,153,.2)'  },
-  MEDIUM:   { label: 'MEDIO',    cls: 'risk-medium',   Icon: MinusCircle,   glow: 'rgba(245,200,66,.2)' },
-  HIGH:     { label: 'ALTO',     cls: 'risk-high',     Icon: AlertTriangle, glow: 'rgba(255,122,64,.2)' },
-  CRITICAL: { label: 'CRITICO',  cls: 'risk-critical', Icon: AlertOctagon,  glow: 'rgba(255,59,139,.2)' },
+const RISK_CONFIG = {
+  LOW:      { label: 'BASSO',   color: '#00FF99', glow: 'rgba(0,255,153,.2)',   icon: CheckCircle2  },
+  MEDIUM:   { label: 'MEDIO',   color: '#F5C842', glow: 'rgba(245,200,66,.2)',  icon: MinusCircle   },
+  HIGH:     { label: 'ALTO',    color: '#FF7A40', glow: 'rgba(255,122,64,.2)',  icon: AlertTriangle },
+  CRITICAL: { label: 'CRITICO', color: '#FF3B8B', glow: 'rgba(255,59,139,.2)', icon: AlertOctagon  },
 }
 
 export default function ReportView({ data, onAddToBoard }) {
   if (!data) return null
   const { url, domain, report, extractedData, redirectChain, status } = data
-  const risk = riskConfig[report.riskLevel] || riskConfig.LOW
+  const risk = RISK_CONFIG[report.riskLevel] || RISK_CONFIG.LOW
+  const RiskIcon = risk.icon
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.5 }}
-      className="w-full space-y-6"
-    >
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full space-y-5">
 
-      {/* ── Header card ─────────────────────────────────────── */}
+      {/* ── Header ── */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-        className="glass-card p-6 relative overflow-hidden corner-bracket"
-        style={{ boxShadow: `0 0 60px ${risk.glow}` }}
+        transition={{ duration: 0.6, ease: [0.16,1,.3,1] }}
+        style={{
+          background: 'rgba(13,13,24,.8)',
+          border: `1px solid ${risk.color}22`,
+          borderRadius: '20px',
+          padding: '28px',
+          position: 'relative', overflow: 'hidden',
+          boxShadow: `0 0 60px ${risk.glow}`,
+        }}
       >
-        {/* Bg glow */}
-        <div
-          className="absolute inset-0 pointer-events-none opacity-30"
-          style={{ background: `radial-gradient(ellipse at top right, ${risk.glow}, transparent 60%)` }}
-        />
+        <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(ellipse at top right, ${risk.glow}, transparent 60%)`, pointerEvents: 'none' }} />
 
-        <div className="relative flex flex-col md:flex-row md:items-start gap-6">
+        <div style={{ position: 'relative', display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
 
-          {/* Risk score big display */}
-          <div className="flex-shrink-0">
-            <div className={`w-24 h-24 rounded-2xl border-2 flex flex-col items-center justify-center ${risk.cls}`}>
-              <risk.Icon size={22} className="mb-1" />
-              <span className="font-title text-3xl font-black leading-none">{report.riskScore}</span>
-              <span className="font-mono text-[8px] tracking-widest uppercase opacity-70">/ 10</span>
+          {/* Score */}
+          <div style={{ flexShrink: 0 }}>
+            <div style={{
+              width: '96px', height: '96px', borderRadius: '18px',
+              border: `2px solid ${risk.color}55`,
+              background: `${risk.color}0D`,
+              display: 'flex', flexDirection: 'column',
+              alignItems: 'center', justifyContent: 'center', gap: '2px',
+            }}>
+              <RiskIcon size={20} color={risk.color} />
+              <span style={{ fontFamily: 'alfarn-2, sans-serif', fontSize: '32px', fontWeight: 900, color: risk.color, lineHeight: 1 }}>
+                {report.riskScore}
+              </span>
+              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '8px', color: `${risk.color}99`, letterSpacing: '0.1em' }}>/ 10</span>
             </div>
-            <div className={`mt-2 px-3 py-1 rounded-full border text-center font-mono text-[9px] font-bold tracking-widest uppercase ${risk.cls}`}>
-              {risk.label}
-            </div>
+            <div style={{
+              marginTop: '8px', padding: '4px 10px', borderRadius: '20px', textAlign: 'center',
+              border: `1px solid ${risk.color}44`, background: `${risk.color}0D`,
+              fontFamily: 'JetBrains Mono, monospace', fontSize: '9px', fontWeight: 700,
+              color: risk.color, letterSpacing: '0.12em', textTransform: 'uppercase',
+            }}>{risk.label}</div>
           </div>
 
           {/* Info */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-3 mb-2 flex-wrap">
-              <span className="font-title text-xl font-black uppercase tracking-tight">{domain}</span>
-              <span className={`px-2 py-0.5 rounded border font-mono text-[9px] font-bold uppercase tracking-widest ${risk.cls}`}>
-                {report.riskLevel}
-              </span>
-              <span className={`px-2 py-0.5 rounded border font-mono text-[9px] uppercase tracking-widest ${
-                status < 400 ? 'text-neon border-neon/30 bg-neon/5' : 'text-orange border-orange/30 bg-orange/5'
-              }`}>
-                HTTP {status}
-              </span>
+          <div style={{ flex: 1, minWidth: '240px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px', flexWrap: 'wrap' }}>
+              <span style={{ fontFamily: 'alfarn-2, sans-serif', fontSize: '22px', fontWeight: 900, color: 'white', textTransform: 'uppercase' }}>{domain}</span>
+              <span style={{
+                padding: '3px 10px', borderRadius: '6px',
+                border: `1px solid ${risk.color}44`, background: `${risk.color}0D`,
+                fontFamily: 'JetBrains Mono, monospace', fontSize: '9px', fontWeight: 700,
+                color: risk.color, letterSpacing: '0.12em', textTransform: 'uppercase',
+              }}>{report.riskLevel}</span>
+              <span style={{
+                padding: '3px 10px', borderRadius: '6px',
+                border: status < 400 ? '1px solid rgba(0,255,153,.3)' : '1px solid rgba(255,122,64,.3)',
+                background: status < 400 ? 'rgba(0,255,153,.06)' : 'rgba(255,122,64,.06)',
+                fontFamily: 'JetBrains Mono, monospace', fontSize: '9px',
+                color: status < 400 ? '#00FF99' : '#FF7A40',
+              }}>HTTP {status}</span>
             </div>
 
-            <p className="font-mono text-xs text-white/40 mb-3 break-all">{url}</p>
+            <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '10px', color: 'rgba(255,255,255,.35)', marginBottom: '14px', wordBreak: 'break-all' }}>{url}</p>
 
             {/* Verdict */}
-            <div className="bg-bg3/60 border border-white/5 rounded-xl p-4 mb-4">
-              <div className="font-mono text-[9px] text-white/30 tracking-widest uppercase mb-1.5">Verdict AI</div>
-              <p className="font-mono text-sm text-white/80 leading-relaxed">{report.verdict || report.summary}</p>
+            <div style={{
+              background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.06)',
+              borderRadius: '12px', padding: '14px 16px', marginBottom: '16px',
+            }}>
+              <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '8px', color: 'rgba(255,255,255,.25)', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '6px' }}>Verdict AI</div>
+              <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '12px', color: 'rgba(255,255,255,.75)', lineHeight: 1.7 }}>{report.verdict || report.summary}</p>
             </div>
 
-            {/* Quick stats */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {/* Stats row */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
               {[
-                { label: 'Script', value: extractedData.scriptCount, color: 'cyan'   },
-                { label: 'Ext. Domains', value: extractedData.externalDomains.length, color: 'violet' },
-                { label: 'Tracker', value: extractedData.trackerList?.length || 0, color: 'pink'  },
-                { label: 'Cookie', value: extractedData.cookies?.length || 0, color: 'gold'  },
+                { label: 'Script',       value: extractedData.scriptCount,               color: '#00E5FF' },
+                { label: 'Ext. Domains', value: extractedData.externalDomains?.length||0, color: '#9B5FFF' },
+                { label: 'Tracker',      value: extractedData.trackerList?.length||0,     color: '#FF3B8B' },
+                { label: 'Cookie',       value: extractedData.cookies?.length||0,          color: '#F5C842' },
               ].map(({ label, value, color }) => (
-                <div key={label} className={`p-3 rounded-xl border ${colorMap[color].border} ${colorMap[color].bg}`}>
-                  <div className={`font-title text-2xl font-black ${colorMap[color].text}`}>{value}</div>
-                  <div className="font-mono text-[9px] text-white/30 uppercase tracking-widest">{label}</div>
+                <div key={label} style={{
+                  padding: '12px', borderRadius: '12px',
+                  border: `1px solid ${color}22`, background: `${color}08`,
+                  textAlign: 'center',
+                }}>
+                  <div style={{ fontFamily: 'alfarn-2, sans-serif', fontSize: '26px', fontWeight: 900, color, lineHeight: 1 }}>{value}</div>
+                  <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '8px', color: 'rgba(255,255,255,.3)', textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: '4px' }}>{label}</div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Add to board button */}
+          {/* Add to board */}
           {onAddToBoard && (
-            <motion.button
-              onClick={onAddToBoard}
-              whileHover={{ scale: 1.04 }}
-              whileTap={{ scale: 0.96 }}
-              className="flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-violet/10 border border-violet/30 text-violet font-mono font-bold text-xs tracking-widest uppercase hover:bg-violet/20 transition-colors"
-            >
-              <LayoutDashboard size={13} />
-              Board
-            </motion.button>
+            <div style={{ flexShrink: 0, alignSelf: 'flex-start' }}>
+              <button
+                onClick={onAddToBoard}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '8px',
+                  padding: '10px 16px', borderRadius: '12px', cursor: 'pointer',
+                  background: 'rgba(155,95,255,.1)', border: '1px solid rgba(155,95,255,.3)',
+                  color: '#9B5FFF', fontFamily: 'JetBrains Mono, monospace',
+                  fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(155,95,255,.2)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'rgba(155,95,255,.1)'}
+              >
+                <LayoutDashboard size={13} />
+                Board
+              </button>
+            </div>
           )}
         </div>
 
         {/* Redirect chain */}
-        {redirectChain.length > 0 && (
-          <div className="mt-4 p-3 rounded-xl bg-orange/5 border border-orange/20">
-            <div className="font-mono text-[9px] text-orange/60 tracking-widest uppercase mb-2">Redirect chain ({redirectChain.length})</div>
-            <div className="space-y-1">
-              {redirectChain.map((r, i) => (
-                <div key={i} className="font-mono text-[10px] text-white/40 flex items-center gap-2">
-                  <span className="text-orange/40">{i + 1}.</span>
-                  <span className="break-all">{r}</span>
-                </div>
-              ))}
+        {redirectChain?.length > 0 && (
+          <div style={{
+            marginTop: '16px', padding: '12px 16px', borderRadius: '12px',
+            background: 'rgba(255,122,64,.05)', border: '1px solid rgba(255,122,64,.2)',
+          }}>
+            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '8px', color: 'rgba(255,122,64,.6)', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '8px' }}>
+              Redirect chain ({redirectChain.length})
             </div>
+            {redirectChain.map((r, i) => (
+              <div key={i} style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '10px', color: 'rgba(255,255,255,.35)', marginBottom: '4px', wordBreak: 'break-all' }}>
+                <span style={{ color: 'rgba(255,122,64,.5)', marginRight: '8px' }}>{i+1}.</span>{r}
+              </div>
+            ))}
           </div>
         )}
       </motion.div>
 
-      {/* ── Dynamic report sections ─────────────────────────── */}
-      <div className="grid gap-4 md:grid-cols-2">
+      {/* ── Security header badges ── */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1, duration: 0.5 }}
+        style={{
+          display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '8px',
+        }}
+      >
+        {[
+          { label: 'CSP',           ok: extractedData.cspPresent  },
+          { label: 'HSTS',          ok: extractedData.hstsPresent },
+          { label: 'X-Frame-Opt.', ok: !!extractedData.xFrameOptions },
+          { label: 'Referrer Policy', ok: !!extractedData.referrerPolicy },
+          { label: 'Login Form',    ok: !extractedData.hasLogin,   invert: true },
+          { label: 'JS Obfuscation',ok: !extractedData.hasObfuscation, invert: true },
+        ].map(({ label, ok }) => (
+          <div key={label} style={{
+            display: 'flex', alignItems: 'center', gap: '8px',
+            padding: '10px 14px', borderRadius: '10px',
+            background: ok ? 'rgba(0,255,153,.05)' : 'rgba(255,122,64,.05)',
+            border: `1px solid ${ok ? 'rgba(0,255,153,.18)' : 'rgba(255,122,64,.18)'}`,
+          }}>
+            {ok
+              ? <CheckCircle2 size={13} color="#00FF99" />
+              : <XCircle      size={13} color="#FF7A40" />
+            }
+            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '9px', color: ok ? '#00FF99' : '#FF7A40', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label}</span>
+          </div>
+        ))}
+      </motion.div>
+
+      {/* ── Report sections ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '14px' }}>
         {report.sections.map((section, i) => {
           const Icon = iconMap[section.icon] || Shield
-          const colors = colorMap[section.color] || colorMap.cyan
-
+          const s = SECTION_STYLES[section.color] || SECTION_STYLES.cyan
           return (
             <motion.div
               key={i}
-              initial={{ opacity: 0, y: 16 }}
+              initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 + i * 0.08, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-              className={`glass-card p-5 border ${colors.border} ${colors.bg} relative overflow-hidden corner-bracket`}
+              transition={{ delay: 0.12 + i * 0.07, duration: 0.5 }}
+              style={{
+                padding: '20px', borderRadius: '16px',
+                background: s.bg, border: `1px solid ${s.border}`,
+                position: 'relative', overflow: 'hidden',
+              }}
             >
-              {/* Subtle glow */}
-              <div
-                className="absolute top-0 right-0 w-32 h-32 pointer-events-none"
-                style={{ background: `radial-gradient(circle, ${colors.glow} 0%, transparent 70%)` }}
-              />
-
-              <div className="relative">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className={`p-1.5 rounded-lg ${colors.bg} border ${colors.border}`}>
-                    <Icon size={14} className={colors.text} />
+              <div style={{ position: 'absolute', top: 0, right: 0, width: '120px', height: '120px', background: `radial-gradient(circle, ${s.glow} 0%, transparent 70%)`, pointerEvents: 'none' }} />
+              <div style={{ position: 'relative' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+                  <div style={{ padding: '7px', borderRadius: '10px', background: s.bg, border: `1px solid ${s.border}` }}>
+                    <Icon size={14} color={s.text} />
                   </div>
-                  <h3 className={`font-mono text-xs font-bold uppercase tracking-widest ${colors.text}`}>
-                    {section.title}
-                  </h3>
+                  <h3 style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '11px', fontWeight: 700, color: s.text, textTransform: 'uppercase', letterSpacing: '0.1em' }}>{section.title}</h3>
                 </div>
-                <p className="font-mono text-xs text-white/55 leading-relaxed whitespace-pre-wrap">
-                  {section.content}
-                </p>
+                <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '11px', color: 'rgba(255,255,255,.55)', lineHeight: 1.75, whiteSpace: 'pre-wrap' }}>{section.content}</p>
               </div>
             </motion.div>
           )
         })}
       </div>
 
-      {/* ── Raw data accordion ───────────────────────────────── */}
-      <RawDataSection data={extractedData} />
-    </motion.div>
-  )
-}
+      {/* ── Raw data — griglia più ampia ── */}
+      <motion.div
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5, duration: 0.5 }}
+        style={{
+          background: 'rgba(13,13,24,.7)', border: '1px solid rgba(255,255,255,.06)',
+          borderRadius: '18px', padding: '24px',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '18px' }}>
+          <Server size={13} color="rgba(255,255,255,.25)" />
+          <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '9px', color: 'rgba(255,255,255,.25)', textTransform: 'uppercase', letterSpacing: '0.2em' }}>Dati Grezzi Estratti</span>
+        </div>
 
-// ── Raw data expandable section ───────────────────────────
-function RawDataSection({ data }) {
-  const sections = [
-    {
-      title: 'Meta Tags',
-      icon: Globe,
-      items: data.metaTags?.map(m => `${m.name}: ${m.content}`).slice(0, 15) || [],
-      color: 'cyan',
-    },
-    {
-      title: 'Script Sources',
-      icon: Code,
-      items: data.scripts?.slice(0, 20) || [],
-      color: 'violet',
-    },
-    {
-      title: 'Domini Esterni',
-      icon: ExternalLink,
-      items: data.externalDomains?.slice(0, 30) || [],
-      color: 'pink',
-    },
-    {
-      title: 'Cookie',
-      icon: Cookie,
-      items: data.cookies?.map(c => `${c.name} [${c.flags || 'no flags'}]`).slice(0, 15) || [],
-      color: 'gold',
-    },
-    {
-      title: 'Tracker Rilevati',
-      icon: Eye,
-      items: data.trackerList || [],
-      color: 'orange',
-    },
-  ].filter(s => s.items.length > 0)
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.6, duration: 0.5 }}
-      className="glass-card p-5"
-    >
-      <div className="font-mono text-[9px] text-white/25 tracking-widest uppercase mb-4 flex items-center gap-2">
-        <Server size={11} />
-        Dati Grezzi Estratti
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {sections.map(({ title, icon: Icon, items, color }) => {
-          const colors = colorMap[color] || colorMap.cyan
-          return (
-            <div key={title} className={`rounded-xl border ${colors.border} p-3`}>
-              <div className="flex items-center gap-1.5 mb-2">
-                <Icon size={11} className={colors.text} />
-                <span className={`font-mono text-[9px] uppercase tracking-widest font-bold ${colors.text}`}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px' }}>
+          {[
+            { title: 'Meta Tags',        items: extractedData.metaTags?.map(m => `${m.name}: ${m.content}`).slice(0,15)||[],    color: '#00E5FF', icon: Globe },
+            { title: 'Script Sources',   items: extractedData.scripts?.slice(0,20)||[],                                          color: '#9B5FFF', icon: Code  },
+            { title: 'Domini Esterni',   items: extractedData.externalDomains?.slice(0,30)||[],                                   color: '#FF3B8B', icon: ExternalLink },
+            { title: 'Cookie',           items: extractedData.cookies?.map(c=>`${c.name} [${c.flags||'no flags'}]`).slice(0,15)||[], color: '#F5C842', icon: Cookie },
+            { title: 'Tracker',          items: extractedData.trackerList||[],                                                    color: '#FF7A40', icon: Eye   },
+          ].filter(s => s.items.length > 0).map(({ title, items, color, icon: Icon }) => (
+            <div key={title} style={{
+              padding: '16px', borderRadius: '14px',
+              border: `1px solid ${color}18`, background: `${color}05`,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                <Icon size={12} color={color} />
+                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '9px', fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                   {title} ({items.length})
                 </span>
               </div>
-              <div className="space-y-1 max-h-36 overflow-y-auto">
+              <div style={{ maxHeight: '160px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '5px' }}>
                 {items.map((item, i) => (
-                  <div key={i} className="font-mono text-[9px] text-white/35 break-all leading-relaxed">
-                    · {item}
+                  <div key={i} style={{
+                    fontFamily: 'JetBrains Mono, monospace', fontSize: '9px',
+                    color: 'rgba(255,255,255,.4)', wordBreak: 'break-all', lineHeight: 1.6,
+                    padding: '4px 8px', borderRadius: '6px', background: 'rgba(255,255,255,.03)',
+                  }}>
+                    {item}
                   </div>
                 ))}
               </div>
             </div>
-          )
-        })}
-      </div>
+          ))}
+        </div>
+      </motion.div>
     </motion.div>
   )
 }
