@@ -22,21 +22,12 @@ app.use(helmet({
 }));
 
 // ── CORS ──────────────────────────────────────────────────
-const allowedOrigins = [
-  process.env.FRONTEND_URL || 'http://localhost:5173',
-  'http://localhost:3000',
-  'http://localhost:5173',
-];
 app.use(cors({
-  origin: (origin, cb) => {
-    if (!origin || allowedOrigins.some(o => origin.startsWith(o))) return cb(null, true);
-    cb(new Error('Not allowed by CORS'));
-  },
+  origin: true, // accetta tutte le origini
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
 }));
-
 // ── Body parser ───────────────────────────────────────────
 app.use(express.json({ limit: '1mb' }));
 
