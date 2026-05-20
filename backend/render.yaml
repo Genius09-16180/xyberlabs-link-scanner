@@ -1,0 +1,23 @@
+# render.yaml — Deploy automatico del backend su Render.com
+# Carica questo file nella root del repository backend
+
+services:
+  - type: web
+    name: xyberlabs-link-scanner-api
+    runtime: node
+    rootDir: backend          # cartella del backend nel repo
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: GROQ_API_KEY
+        sync: false           # inserisci manualmente nel dashboard Render
+      - key: MONGODB_URI
+        sync: false           # inserisci manualmente nel dashboard Render
+      - key: FRONTEND_URL
+        sync: false           # es: https://xyberlabs-scanner.netlify.app
+      - key: SECRET_KEY
+        generateValue: true   # Render genera automaticamente
+    healthCheckPath: /health
+    autoDeploy: true
