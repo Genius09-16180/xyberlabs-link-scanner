@@ -1,78 +1,64 @@
-// ─────────────────────────────────────────────────────────
-//  pages/BoardPage.jsx — Board interattiva dei link
-// ─────────────────────────────────────────────────────────
+// BoardPage.jsx — inline styles, no Tailwind dinamico, no border bianchi
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import {
-  ArrowLeft, RefreshCw, Info,
-  CheckCircle2, AlertTriangle, AlertOctagon, MinusCircle, HelpCircle
-} from 'lucide-react'
+import { ArrowLeft, Info } from 'lucide-react'
 import Navbar    from '../components/Layout/Navbar'
 import LinkBoard from '../components/Board/LinkBoard'
 
 const LEGEND = [
-  { label: 'Safe',       color: 'text-neon   border-neon/30   bg-neon/8'   },
-  { label: 'Suspicious', color: 'text-gold   border-gold/30   bg-gold/8'   },
-  { label: 'Dangerous',  color: 'text-orange border-orange/30 bg-orange/8' },
-  { label: 'Phishing',   color: 'text-pink   border-pink/30   bg-pink/8'   },
-  { label: 'Tracker',    color: 'text-violet border-violet/30 bg-violet/8' },
-  { label: 'Unknown',    color: 'text-white/40 border-white/10 bg-white/3' },
+  { label:'Safe',       color:'#00FF99' },
+  { label:'Suspicious', color:'#F5C842' },
+  { label:'Dangerous',  color:'#FF7A40' },
+  { label:'Phishing',   color:'#FF3B8B' },
+  { label:'Tracker',    color:'#9B5FFF' },
+  { label:'Unknown',    color:'rgba(255,255,255,.3)' },
 ]
 
 export default function BoardPage() {
   const navigate = useNavigate()
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden">
+    <div style={{ height:'100vh', display:'flex', flexDirection:'column', overflow:'hidden', background:'#07070D' }}>
       <Navbar />
 
       {/* Toolbar */}
       <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2, duration: 0.5 }}
-        className="flex-shrink-0 flex items-center gap-4 px-5 py-3 border-b border-white/5 bg-bg1/80 backdrop-blur-xl mt-16 z-20"
+        initial={{ opacity:0, y:-8 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.15, duration:0.4 }}
+        style={{ flexShrink:0, display:'flex', alignItems:'center', gap:'12px', padding:'8px 18px', borderBottom:'1px solid rgba(255,255,255,.05)', background:'rgba(13,13,24,.85)', backdropFilter:'blur(20px)', marginTop:'64px', zIndex:20, flexWrap:'wrap' }}
       >
         {/* Back */}
-        <button
-          onClick={() => navigate('/')}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/3 border border-white/8 font-mono text-xs text-white/40 hover:text-white hover:border-white/15 transition-colors"
-        >
-          <ArrowLeft size={13} />
-          Scanner
+        <button onClick={()=>navigate('/')} style={{ display:'flex', alignItems:'center', gap:'7px', padding:'6px 12px', background:'rgba(255,255,255,.03)', border:'1px solid rgba(255,255,255,.08)', color:'rgba(255,255,255,.4)', fontFamily:'JetBrains Mono, monospace', fontSize:'10px', textTransform:'uppercase', letterSpacing:'0.1em', cursor:'pointer' }}
+          onMouseEnter={e=>{ e.currentTarget.style.borderColor='rgba(255,255,255,.18)'; e.currentTarget.style.color='white' }}
+          onMouseLeave={e=>{ e.currentTarget.style.borderColor='rgba(255,255,255,.08)'; e.currentTarget.style.color='rgba(255,255,255,.4)' }}>
+          <ArrowLeft size={12} /> Scanner
         </button>
 
         {/* Title */}
-        <div className="flex items-center gap-2">
-          <div className="w-1.5 h-1.5 rounded-full bg-cyan animate-pulse" />
-          <span className="font-mono text-xs font-bold text-white/60 uppercase tracking-widest">
-            Link Board
-          </span>
+        <div style={{ display:'flex', alignItems:'center', gap:'7px' }}>
+          <span style={{ width:'5px', height:'5px', borderRadius:'50%', background:'#00E5FF', display:'inline-block' }} />
+          <span style={{ fontFamily:'JetBrains Mono, monospace', fontSize:'10px', fontWeight:700, color:'rgba(255,255,255,.55)', textTransform:'uppercase', letterSpacing:'0.15em' }}>Link Board</span>
         </div>
 
-        {/* Spacer */}
-        <div className="flex-1" />
+        <div style={{ flex:1 }} />
 
         {/* Legend */}
-        <div className="hidden lg:flex items-center gap-2">
+        <div style={{ display:'flex', alignItems:'center', gap:'6px', flexWrap:'wrap' }}>
           {LEGEND.map(({ label, color }) => (
-            <span key={label} className={`px-2 py-1 rounded-lg border font-mono text-[8px] uppercase tracking-widest ${color}`}>
-              {label}
-            </span>
+            <span key={label} style={{ padding:'3px 8px', border:`1px solid ${color}35`, background:`${color}0A`, fontFamily:'JetBrains Mono, monospace', fontSize:'8px', color, textTransform:'uppercase', letterSpacing:'0.08em' }}>{label}</span>
           ))}
         </div>
 
         {/* Tips */}
-        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-bg3/40 border border-white/5">
-          <Info size={11} className="text-white/20" />
-          <span className="font-mono text-[8px] text-white/20 uppercase tracking-widest hidden md:block">
-            Drag · Connect · Click per editare · Delete per rimuovere
-          </span>
+        <div style={{ display:'flex', alignItems:'center', gap:'5px', padding:'5px 10px', background:'rgba(255,255,255,.03)', border:'1px solid rgba(255,255,255,.05)' }}>
+          <Info size={10} color="rgba(255,255,255,.2)" />
+          <span style={{ fontFamily:'JetBrains Mono, monospace', fontSize:'8px', color:'rgba(255,255,255,.2)', textTransform:'uppercase', letterSpacing:'0.08em' }}>Drag · Connetti · Click per editare · Del per rimuovere</span>
         </div>
       </motion.div>
 
-      {/* Board canvas — fills remaining height */}
-      <div className="flex-1 relative dot-grid overflow-hidden">
+      {/* Board canvas */}
+      <div style={{ flex:1, position:'relative', overflow:'hidden', display:'flex', flexDirection:'column',
+        backgroundImage:'radial-gradient(rgba(0,229,255,.13) 1px, transparent 1px)',
+        backgroundSize:'28px 28px' }}>
         <LinkBoard />
       </div>
     </div>
