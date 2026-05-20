@@ -22,8 +22,20 @@ app.use(helmet({
 }));
 
 // ── CORS ──────────────────────────────────────────────────
+// ALLOWED_ORIGINS nel .env: lista separata da virgola
+// es: https://tuosito.altervista.org,https://tuosito.netlify.app
+const ALLOWED = (process.env.ALLOWED_ORIGINS || '')
+  .split(',')
+  .map(o => o.trim())
+  .filter(Boolean);
+
 app.use(cors({
-  origin: true, // accetta tutte le origini
+  origin: (origin, cb) => {
+    // Permetti richieste senza origin (es. Postman, curl, stesso server)
+    if (!origin) return cb(null, true);
+    if (ALLOWED.length === 0 || ALLOWED.includes(origin)) return cb(null, true);
+    cb(new Error(`CORS: origine non autorizzata → ${origin}`));
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
